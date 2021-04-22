@@ -63,11 +63,11 @@ DATA_output=Load_data(General_path,"Output", Data_Patient, 'None','None')
 
 P_A=data.frame('Patient'=Data_scanner$Patient[which(Data_scanner$Scanner=='A')])
 
-
 performance_metric=c('AUCpr')
 
 
 Disccretisation_method=c('FBW','FBN','Med_FBW','Med_FBN','Med_FBW_FBN')
+
 
 interpolation=c(TRUE)
 
@@ -78,7 +78,7 @@ clinical_F=c('Yes','No')
 Type_radiomics=c('OR_Radiomics','TLR_Radiomics')
 
 
-FS=c('Ranking_FS')
+FS=c('MRMR_Forward_pearson','MRMR_Forward_spearman','MRMR_Backward_pearson','MRMR_Backward_spearman','MRMR_MI','RF_Gini','RF_Accuracy')
 
 
 count=0
@@ -178,7 +178,6 @@ for (i_pm in 1:length(performance_metric)) {
               }
               
               
-              
               Data =merge( DATA_C,DATA_output,by="Patient")
               Data =merge( Data,Data_Radiomics,by="Patient")
               
@@ -210,48 +209,46 @@ for (i_pm in 1:length(performance_metric)) {
                 
               }
               
-        
-                TR_Features_MRMR_Forward_pearson=FeatureSelection_MLMR(D_T2_IN,Out_DT2,length(colnames(D_T2_IN)),'up','pearson')
-                TR_Features_MRMR_Forward_pearson=colnames(TR_Features_MRMR_Forward_pearson)
-                TR_Features_MRMR_Forward_pearson_DF=data.frame('features'=TR_Features_MRMR_Forward_pearson, 'Score1'=order(seq(1, length(colnames(D_T2_IN)), by=1), decreasing = FALSE))
-                
-                TR_Features_MRMR_Forward_spearman=FeatureSelection_MLMR(D_T2_IN,Out_DT2,length(colnames(D_T2_IN)),'up','spearman')
-                TR_Features_MRMR_Forward_spearman=colnames(TR_Features_MRMR_Forward_spearman)
-                TR_Features_MRMR_Forward_spearman_DF=data.frame('features'=TR_Features_MRMR_Forward_spearman, 'Score2'=order(seq(1, length(colnames(D_T2_IN)), by=1), decreasing = FALSE))
-                print('TR_Features_MRMR_Forward_spearman')
-                
-                lid <- matrix(0, length(colnames(D_T2_IN)), 1)
+              if(FS[i_fs]=='MRMR_Forward_pearson'){
+                TR_Features=FeatureSelection_MLMR(D_T2_IN,Out_DT2,10,'up','pearson')
+                Features_10=colnames(TR_Features)
+                Features_5=c(Features_10[6],Features_10[7],Features_10[8],Features_10[9],Features_10[10])
+              }
+              if(FS[i_fs]=='MRMR_Forward_spearman'){
+                TR_Features=FeatureSelection_MLMR(D_T2_IN,Out_DT2,10,'up','spearman')
+                Features_10=colnames(TR_Features)
+                Features_5=c(Features_10[6],Features_10[7],Features_10[8],Features_10[9],Features_10[10])
+              }
+              if(FS[i_fs]=='MRMR_Backward_pearson'){
+                TR_Features=FeatureSelection_MLMR(D_T2_IN,Out_DT2,10,'down','pearson')
+                Features_10=colnames(TR_Features)
+                Features_5=c(Features_10[6],Features_10[7],Features_10[8],Features_10[9],Features_10[10])
+              }
+              if(FS[i_fs]=='MRMR_Backward_spearman'){
+                TR_Features=FeatureSelection_MLMR(D_T2_IN,Out_DT2,10,'down','spearman')
+                Features_10=colnames(TR_Features)
+                Features_5=c(Features_10[6],Features_10[7],Features_10[8],Features_10[9],Features_10[10])
+              }
+              if(FS[i_fs]=='MRMR_MI'){
+                lid <- matrix(0, 10, 1)
                 old_f=colnames(D_T2_IN)
-                TR_F=MRMR(D_T2_IN, Out_DT2, k = length(colnames(D_T2_IN)))
+                TR_F=MRMR(D_T2_IN, Out_DT2, k = 10)
                 for (nn in 1:(length(TR_F$selection))){
                   lid[nn]=TR_F$selection[[nn]]
                 }
-                TR_Features_MRMR_MI=old_f[lid]
-                TR_Features_MRMR_MI_DF=data.frame('features'=TR_Features_MRMR_MI, 'Score5'=order(seq(1, length(colnames(D_T2_IN)), by=1), decreasing = TRUE))
-                
-                TR_Features_RF_Gini=FeatureSelection_RandomForest(D_T2_IN,1,Out_DT2,'MeanDecreaseGini',length(colnames(D_T2_IN)))
-                TR_Features_RF_Gini=colnames(TR_Features_RF_Gini)
-                TR_Features_RF_Gini_DF=data.frame('features'=TR_Features_RF_Gini, 'Score6'=order(seq(1, length(colnames(D_T2_IN)), by=1), decreasing = TRUE))
-                
-                TR_Features_RF_Accuracy=FeatureSelection_RandomForest(D_T2_IN,1,Out_DT2,'MeanDecreaseAccuracy',length(colnames(D_T2_IN)))
-                TR_Features_RF_Accuracy=colnames(TR_Features_RF_Accuracy)
-                TR_Features_RF_Accuracy_DF=data.frame('features'=TR_Features_RF_Accuracy, 'Score7'=order(seq(1, length(colnames(D_T2_IN)), by=1), decreasing = TRUE))
-                print('TR_Features_RF_Accuracy')
-                
-                
-                Merge_Features1=merge(TR_Features_MRMR_Forward_pearson_DF,TR_Features_MRMR_Forward_spearman_DF,by='features')
-                Merge_Features4=merge(Merge_Features1,TR_Features_MRMR_MI_DF,by='features')
-                Merge_Features5=merge(Merge_Features4,TR_Features_RF_Gini_DF,by='features')
-                Merge_Features6=merge(Merge_Features5,TR_Features_RF_Accuracy_DF,by='features')
-                Merge_Features_final=Merge_Features6
-                Merge_Features_final['Score']=Merge_Features_final['Score1']+Merge_Features_final['Score2']+
-                  +Merge_Features_final['Score5']+
-                  Merge_Features_final['Score6']+Merge_Features_final['Score7']
-                
-                Merge_Features_final=Merge_Features_final[order(-Merge_Features_final$Score),]
-                
-                Features_10=Merge_Features_final['features'][1:10,1]
-                Features_5=Merge_Features_final['features'][1:5,1]
+                Features_10=old_f[lid]
+                Features_5=c(Features_10[1],Features_10[2],Features_10[3],Features_10[4],Features_10[5])
+              }
+              if(FS[i_fs]=='RF_Gini'){
+                TR_Features=FeatureSelection_RandomForest(D_T2_IN,1,Out_DT2,'MeanDecreaseGini',10)
+                Features_10=colnames(TR_Features)
+                Features_5=c(Features_10[1],Features_10[2],Features_10[3],Features_10[4],Features_10[5])
+              }
+              if(FS[i_fs]=='RF_Accuracy'){
+                TR_Features=FeatureSelection_RandomForest(D_T2_IN,1,Out_DT2,'MeanDecreaseAccuracy',10)
+                Features_10=colnames(TR_Features)
+                Features_5=c(Features_10[1],Features_10[2],Features_10[3],Features_10[4],Features_10[5])
+              }
               
               name_m_i_pm=paste(performance_metric[i_pm],'_', sep = "_", collapse = NULL)
               name_m_i_fs=paste(FS[i_fs],'_', sep = "_", collapse = NULL)
@@ -259,7 +256,7 @@ for (i_pm in 1:length(performance_metric)) {
               name_m_i_i=paste('interpolation_',interpolation[i_i],'_', sep = "_", collapse = NULL)
               name_m_i_cl=paste('Clinical_',clinical_F[i_cl],'_', sep = "_", collapse = NULL)
               name_m_i_tR=paste(Type_radiomics[i_tR],'_', sep = "_", collapse = NULL)
-              name_m_idmNR=paste(Disccretisation_NR[i_dmNR],'_',"Combine_FS_","Results_compare_FS.RData", sep = "_", collapse = NULL)
+              name_m_idmNR=paste(Disccretisation_NR[i_dmNR],'_',"Combat_","Results_compare_FS.RData", sep = "_", collapse = NULL)
               name_file_Results=paste(name_m_i_pm,name_m_i_fs,name_m_i_dm,name_m_i_i,name_m_i_cl,name_m_i_tR,name_m_idmNR, sep = "_", collapse = NULL)
               print(name_file_Results)
               
